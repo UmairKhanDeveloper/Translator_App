@@ -57,7 +57,7 @@ fun BottomNavigation(navController: NavHostController) {
     val items = listOf(
         Screen.ChatScreen,
         Screen.CameraScreen,
-        Screen.MainScreen, // Center active icon
+        Screen.MainScreen,
         Screen.HistoryScreen,
         Screen.FavouriteScreen
     )
@@ -66,11 +66,11 @@ fun BottomNavigation(navController: NavHostController) {
     val current = navStack?.destination?.route
 
     NavigationBar(
-        containerColor = Color(0xFFFFFBFE) // Light background
+        containerColor = Color(0xFFFFFBFE)
     ) {
         items.forEachIndexed { index, screen ->
             val isSelected = current == screen.route
-            val isCenterItem = index == 2 // Assuming Translate is the center
+            val isCenterItem = index == 2
 
             NavigationBarItem(
                 selected = isSelected,
