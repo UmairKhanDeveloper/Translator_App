@@ -1,6 +1,5 @@
 package com.example.translatorapp.screen
 
-import android.annotation.SuppressLint
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -9,15 +8,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -52,60 +48,119 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.texttranslater.domain.model.language.LanguagesItem
 import com.example.translatorapp.R
+import me.bush.translator.Language
+import me.bush.translator.Translation
+import me.bush.translator.Translator
 
 @OptIn(ExperimentalMaterial3Api::class)
-@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun MainScreen(navController: NavController) {
     var textFields by remember { mutableStateOf("") }
     var showTranslatedCard by remember { mutableStateOf(false) }
-
-    var selectedFrom by remember { mutableStateOf(countries[0]) }
-    var selectedTo by remember { mutableStateOf(countries[1]) }
+    var translatedText by remember { mutableStateOf("") }
 
     var fromExpanded by remember { mutableStateOf(false) }
     var toExpanded by remember { mutableStateOf(false) }
 
+    val translator = Translator()
+    val translation = translator.translate("Bush's translator is so cool!", Language.RUSSIAN, Language.AUTO)
+    println(translation.translatedText)
+    println(translation.pronunciation)
+    println(translation.sourceLanguage)
 
+    Language.ENGLISH == Language("english") == Language("en") == Language("eng")
 
-    Scaffold(topBar = {
-        TopAppBar(
-            title = {
-                Text(
-                    text = "language Translator",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.White, modifier = Modifier.padding(start = 20.dp)
-                )
+    Translator translator = new Translator();
+    Translation translation = translator.translateBlocking("...", Language.Companion.INSTANCE.invoke("spanish"));
+    translation.getTranslatedText();
 
-            }, navigationIcon = {
-                Icon(
-                    painter = painterResource(R.drawable.menu),
-                    contentDescription = "",
-                    tint = Color.White
-                )
-            }, actions = {
+    val languages = listOf(
+        LanguagesItem(name = "English", localName = "English", flag = "🇬🇧", code = "en"),
+        LanguagesItem(name = "Spanish", localName = "español", flag = "🇪🇸", code = "es"),
+        LanguagesItem(name = "Arabic", localName = "العربية", flag = "🇸🇦", code = "ar"),
+        LanguagesItem(name = "German", localName = "Deutsch", flag = "🇩🇪", code = "de"),
+        LanguagesItem(name = "Hindi", localName = "हिंदी", flag = "🇮🇳", code = "hi"),
+        LanguagesItem(name = "Portuguese", localName = "Português", flag = "🇵🇹", code = "pt"),
+        LanguagesItem(name = "Turkish", localName = "Türk", flag = "🇹🇷", code = "tr"),
+        LanguagesItem(name = "Thai", localName = "ไทย", flag = "🇹🇭", code = "th"),
+        LanguagesItem(name = "French", localName = "Français", flag = "🇫🇷", code = "fr"),
+        LanguagesItem(name = "Chinese", localName = "中文", flag = "🇨🇳", code = "zh"),
+        LanguagesItem(name = "Japanese", localName = "日本語", flag = "🇯🇵", code = "ja"),
+        LanguagesItem(name = "Korean", localName = "한국어", flag = "🇰🇷", code = "ko"),
+        LanguagesItem(name = "Russian", localName = "русский", flag = "🇷🇺", code = "ru"),
+        LanguagesItem(name = "Italian", localName = "Italiano", flag = "🇮🇹", code = "it"),
+        LanguagesItem(name = "Dutch", localName = "Nederlands", flag = "🇳🇱", code = "nl"),
+        LanguagesItem(name = "Swedish", localName = "Svenska", flag = "🇸🇪", code = "sv"),
+        LanguagesItem(name = "Norwegian", localName = "Norsk", flag = "🇳🇴", code = "no"),
+        LanguagesItem(name = "Finnish", localName = "Suomi", flag = "🇫🇮", code = "fi"),
+        LanguagesItem(name = "Danish", localName = "Dansk", flag = "🇩🇰", code = "da"),
+        LanguagesItem(name = "Greek", localName = "Ελληνικά", flag = "🇬🇷", code = "el"),
+        LanguagesItem(name = "Czech", localName = "Čeština", flag = "🇨🇿", code = "cs"),
+        LanguagesItem(name = "Polish", localName = "Polski", flag = "🇵🇱", code = "pl"),
+        LanguagesItem(name = "Hungarian", localName = "Magyar", flag = "🇭🇺", code = "hu"),
+        LanguagesItem(name = "Romanian", localName = "Română", flag = "🇷🇴", code = "ro"),
+        LanguagesItem(name = "Ukrainian", localName = "Українська", flag = "🇺🇦", code = "uk"),
+        LanguagesItem(name = "Bulgarian", localName = "Български", flag = "🇧🇬", code = "bg"),
+        LanguagesItem(name = "Vietnamese", localName = "Tiếng Việt", flag = "🇻🇳", code = "vi"),
+        LanguagesItem(name = "Indonesian", localName = "Bahasa Indonesia", flag = "🇮🇩",code = "id"),
+        LanguagesItem(name = "Malay", localName = "Bahasa Melayu", flag = "🇲🇾", code = "ms"),
+        LanguagesItem(name = "Swahili", localName = "Kiswahili", flag = "🇰🇪", code = "sw"),
+        LanguagesItem(name = "Afrikaans", localName = "Afrikaans", flag = "🇿🇦", code = "af"),
+        LanguagesItem(name = "Hebrew", localName = "עברית", flag = "🇮🇱", code = "he"),
+        LanguagesItem(name = "Persian", localName = "فارسی", flag = "🇮🇷", code = "fa"),
+        LanguagesItem(name = "Urdu", localName = "اردو", flag = "🇵🇰", code = "ur"),
+        LanguagesItem(name = "Bengali", localName = "বাংলা", flag = "🇧🇩", code = "bn"),
+        LanguagesItem(name = "Tamil", localName = "தமிழ்", flag = "🇱🇰", code = "ta"),
+        LanguagesItem(name = "Telugu", localName = "తెలుగు", flag = "🇮🇳", code = "te"),
+        LanguagesItem(name = "Kannada", localName = "ಕನ್ನಡ", flag = "🇮🇳", code = "kn"),
+        LanguagesItem(name = "Marathi", localName = "मराठी", flag = "🇮🇳", code = "mr"),
+        LanguagesItem(name = "Gujarati", localName = "ગુજરાતી", flag = "🇮🇳", code = "gu")
+    )
 
-            }, colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0XFF003366))
-        )
-    }) {
+    var selectedFromLanguage by remember { mutableStateOf(languages.first { it.code == "en" }) }
+    var selectedToLanguage by remember { mutableStateOf(languages.first { it.code == "es" }) }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = "language Translator",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.White,
+                        modifier = Modifier.padding(start = 20.dp)
+                    )
+                },
+                navigationIcon = {
+                    Icon(
+                        painter = painterResource(R.drawable.menu),
+                        contentDescription = "Menu",
+                        tint = Color.White
+                    )
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0XFF003366))
+            )
+        }
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = it.calculateTopPadding(), bottom = 80.dp)
+                .padding(paddingValues)
+                .padding(horizontal = 16.dp)
                 .background(color = Color.White),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-
             Spacer(modifier = Modifier.height(20.dp))
             Card(
                 modifier = Modifier
-                    .width(320.dp)
+                    .fillMaxWidth()
                     .height(50.dp),
                 shape = RoundedCornerShape(30.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBFE)),
-                elevation = CardDefaults.elevatedCardElevation(1.dp),
+                elevation = CardDefaults.elevatedCardElevation(1.dp)
             ) {
                 Row(
                     modifier = Modifier
@@ -114,108 +169,119 @@ fun MainScreen(navController: NavController) {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    DropdownMenu(
-                        expanded = fromExpanded,
-                        onDismissRequest = { fromExpanded = false }
-                    ) {
-                        countries.forEach { country ->
-                            DropdownMenuItem(
-                                text = { Text("${country.flag} ${country.language}") },
-                                onClick = {
-                                    selectedFrom = country
-                                    fromExpanded = false
-                                }
-                            )
-                        }
-                    }
-
-                    DropdownMenu(
-                        expanded = toExpanded,
-                        onDismissRequest = { toExpanded = false }
-                    ) {
-                        countries.forEach { country ->
-                            DropdownMenuItem(
-                                text = { Text("${country.flag} ${country.language}") },
-                                onClick = {
-                                    selectedTo = country
-                                    toExpanded = false
-                                }
-                            )
-                        }
-                    }
-
-                    Row(
-                        modifier = Modifier.clickable { fromExpanded = true },
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(Color.LightGray.copy(alpha = 0.1f))
+                    Box {
+                        Row(
+                            modifier = Modifier.clickable { fromExpanded = true },
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Image(
-                                painter = painterResource(getFlagResId(selectedFrom.code)),
-                                contentDescription = "",
-                                modifier = Modifier.fillMaxSize()
-                            )
+                            selectedFromLanguage.flag?.let {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.Transparent),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = it,
+                                        fontSize = 20.sp
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            selectedFromLanguage.name?.let {
+                                Text(
+                                    text = it,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color.Black
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = fromExpanded,
+                                onDismissRequest = { fromExpanded = false }
+                            ) {
+                                languages.forEach { language ->
+                                    DropdownMenuItem(
+                                        text = { Text("${language.flag} ${language.name}") },
+                                        onClick = {
+                                            selectedFromLanguage = language
+                                            fromExpanded = false
+                                        }
+                                    )
+                                }
+                            }
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = selectedFrom.language,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color.Black
-                        )
                     }
 
-                    // 🔄 Swap Icon (optional action)
                     Image(
                         painter = painterResource(R.drawable.swap),
-                        contentDescription = "",
+                        contentDescription = "Swap languages",
                         modifier = Modifier
                             .size(24.dp)
                             .clickable {
-                                val temp = selectedFrom
-                                selectedFrom = selectedTo
-                                selectedTo = temp
+                                val temp = selectedFromLanguage
+                                selectedFromLanguage = selectedToLanguage
+                                selectedToLanguage = temp
+                                textFields = ""
+                                translatedText = ""
+                                showTranslatedCard = false
                             }
                     )
 
-                    Row(
-                        modifier = Modifier.clickable { toExpanded = true },
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(Color.LightGray.copy(alpha = 0.1f))
+                    Box {
+                        Row(
+                            modifier = Modifier.clickable { toExpanded = true },
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Image(
-                                painter = painterResource(getFlagResId(selectedTo.code)),
-                                contentDescription = "",
-                                modifier = Modifier.fillMaxSize()
-                            )
+                            selectedToLanguage.flag?.let {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.Transparent),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = it,
+                                        fontSize = 20.sp
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            selectedToLanguage.name?.let {
+                                Text(
+                                    text = it,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color.Black
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = toExpanded,
+                                onDismissRequest = { toExpanded = false }
+                            ) {
+                                languages.forEach { language ->
+                                    DropdownMenuItem(
+                                        text = { Text("${language.flag} ${language.name}") },
+                                        onClick = {
+                                            selectedToLanguage = language
+                                            toExpanded = false
+                                        }
+                                    )
+                                }
+                            }
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = selectedTo.language,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color.Black
-                        )
                     }
                 }
+
             }
 
             Spacer(modifier = Modifier.height(20.dp))
-
             Card(
                 modifier = Modifier
-                    .padding(10.dp)
-                    .height(220.dp)
-                    .width(320.dp),
+                    .fillMaxWidth()
+                    .height(220.dp),
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBFE)),
                 elevation = CardDefaults.elevatedCardElevation(2.dp)
@@ -223,29 +289,29 @@ fun MainScreen(navController: NavController) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(start = 10.dp, end = 10.dp)
+                        .padding(10.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
-
                     ) {
-                        Text(
-                            text = "English",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0XFF003366)
-                        )
-                        IconButton(onClick = { }) {
+                        selectedFromLanguage.name?.let {
+                            Text(
+                                text = it,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0XFF003366)
+                            )
+                        }
+                        IconButton(onClick = { textFields = "" }) {
                             Icon(
                                 painter = painterResource(id = R.drawable.close),
-                                contentDescription = "Close",
+                                contentDescription = "Clear Text",
                                 tint = Color.Gray
                             )
                         }
                     }
-
 
                     TextField(
                         value = textFields,
@@ -270,16 +336,18 @@ fun MainScreen(navController: NavController) {
                             unfocusedIndicatorColor = Color.Transparent,
                             cursorColor = Color.Gray,
                             focusedTextColor = Color.Black,
-                            unfocusedTextColor = Color.Black
+                            unfocusedTextColor = Color.Black,
+                            disabledContainerColor = Color.Transparent,
+                            errorContainerColor = Color.Transparent
                         ),
-                        shape = RoundedCornerShape(8.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(100.dp)
-                            .padding(top = 4.dp)
+                            .weight(1f)
+                            .padding(vertical = 4.dp)
                     )
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -303,12 +371,16 @@ fun MainScreen(navController: NavController) {
 
                         Button(
                             onClick = {
-                                showTranslatedCard=true
+                                translatedText =
+                                    "Translated: ${textFields.take(50)}${if (textFields.length > 50) "..." else ""}" // Simple placeholder
+                                showTranslatedCard = true
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF6600)),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFFF6600)
+                            ),
                             shape = CircleShape,
-                            modifier = Modifier
-
+                            // Disable button if input is empty (optional)
+                            enabled = textFields.isNotBlank()
                         ) {
                             Text(
                                 text = "Translate",
@@ -319,13 +391,13 @@ fun MainScreen(navController: NavController) {
                     }
                 }
             }
+
             Spacer(modifier = Modifier.height(20.dp))
-            if (showTranslatedCard){
+            if (showTranslatedCard) {
                 Card(
                     modifier = Modifier
-                        .padding(10.dp)
-                        .height(220.dp)
-                        .width(320.dp),
+                        .fillMaxWidth()
+                        .height(220.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBFE)),
                     elevation = CardDefaults.elevatedCardElevation(2.dp)
@@ -341,143 +413,64 @@ fun MainScreen(navController: NavController) {
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(
-                                text = "Spanish",
-                                color = Color(0xFF1A1A1A),
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 14.sp
-                            )
+                            selectedToLanguage.name?.let {
+                                Text(
+                                    text = it,
+                                    color = Color(0xFF1A1A1A),
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp
+                                )
+                            }
                             Icon(
                                 painter = painterResource(R.drawable.speaker),
-                                contentDescription = "Speaker Icon",
-                                tint = Color(0XFF003366)
+                                contentDescription = "Speak Text",
+                                tint = Color(0XFF003366),
+                                modifier = Modifier.clickable { }
                             )
                         }
 
-
                         Text(
-                            text = "¿Hola como estas?",
+                            text = translatedText,
                             color = Color.Black,
                             fontSize = 14.sp,
                             textAlign = TextAlign.Start,
-                            modifier = Modifier.padding( bottom = 20.dp)
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(vertical = 8.dp)
                         )
 
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 6.dp),
+                            modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.End,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 painter = painterResource(R.drawable.copy),
                                 contentDescription = "Copy",
-                                modifier = Modifier.padding(end = 10.dp),
-                                tint =Color(0XFF003366)
+                                modifier = Modifier
+                                    .padding(end = 16.dp)
+                                    .clickable { },
+                                tint = Color(0XFF003366)
                             )
                             Icon(
                                 painter = painterResource(R.drawable.share),
                                 contentDescription = "Share",
-                                modifier = Modifier.padding(end = 10.dp),
+                                modifier = Modifier
+                                    .padding(end = 16.dp)
+                                    .clickable {},
                                 tint = Color(0XFF003366)
                             )
                             Icon(
                                 painter = painterResource(R.drawable.star),
-                                contentDescription = "Star",
+                                contentDescription = "Favorite",
+                                modifier = Modifier.clickable { },
                                 tint = Color(0XFF003366)
                             )
                         }
                     }
                 }
             }
-
-
-
+            Spacer(modifier = Modifier.height(16.dp))
         }
-
-
-    }
-
-}
-
-
-data class Country(
-    val name: String,
-    val code: String,
-    val flag: String,
-    val language: String
-)
-
-val countries = listOf(
-    Country("United States", "US", "🇺🇸", "English"),
-    Country("Pakistan", "PK", "🇵🇰", "Urdu"),
-    Country("India", "IN", "🇮🇳", "Hindi"),
-    Country("United Kingdom", "GB", "🇬🇧", "English"),
-    Country("France", "FR", "🇫🇷", "French"),
-    Country("Germany", "DE", "🇩🇪", "German"),
-    Country("China", "CN", "🇨🇳", "Chinese"),
-    Country("Japan", "JP", "🇯🇵", "Japanese"),
-    Country("Saudi Arabia", "SA", "🇸🇦", "Arabic"),
-    Country("Russia", "RU", "🇷🇺", "Russian"),
-    Country("Brazil", "BR", "🇧🇷", "Portuguese"),
-    Country("Canada", "CA", "🇨🇦", "English / French"),
-    Country("Spain", "ES", "🇪🇸", "Spanish"),
-    Country("Italy", "IT", "🇮🇹", "Italian"),
-    Country("Turkey", "TR", "🇹🇷", "Turkish"),
-    Country("South Korea", "KR", "🇰🇷", "Korean"),
-    Country("Bangladesh", "BD", "🇧🇩", "Bengali"),
-    Country("Afghanistan", "AF", "🇦🇫", "Pashto / Dari"),
-    Country("Indonesia", "ID", "🇮🇩", "Indonesian"),
-    Country("Iran", "IR", "🇮🇷", "Persian")
-)
-
-
-@Composable
-fun CountryListScreen() {
-    LazyColumn {
-        items(countries) { country ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // 🇺🇸 Flag Emoji
-                Text(
-                    text = country.flag,
-                    fontSize = 28.sp
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column {
-                    Text(
-                        text = country.name,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Language: ${country.language}",
-                        fontSize = 14.sp,
-                        color = Color.Gray
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun getFlagResId(code: String): Int {
-    return when (code.lowercase()) {
-        "us" -> R.drawable.flags_us
-        "pk" -> R.drawable.flags_us
-        "in" -> R.drawable.flags_us
-        "es" -> R.drawable.flags_us
-        "fr" -> R.drawable.flags_us
-        "de" -> R.drawable.spain
-        "sa" -> R.drawable.spain
-        "ru" -> R.drawable.spain
-        "br" -> R.drawable.spain
-        else -> R.drawable.spain
     }
 }

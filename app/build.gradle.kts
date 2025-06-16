@@ -63,5 +63,5 @@ dependencies {
 
     implementation("com.airbnb.android:lottie-compose:6.4.0")
     implementation("com.airbnb.android:lottie-compose:6.4.0")
-
+    implementation ("com.github.therealbush:translator:1.1.1")
 }
