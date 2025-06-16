@@ -1,5 +1,16 @@
 package com.example.translatorapp.screen
 
+import android.Manifest
+import android.content.Context
+import android.content.Intent
+import android.os.Bundle
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
+import android.speech.tts.TextToSpeech
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -11,15 +22,19 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -33,15 +48,21 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -50,33 +71,25 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.texttranslater.domain.model.language.LanguagesItem
 import com.example.translatorapp.R
+import kotlinx.coroutines.launch
 import me.bush.translator.Language
-import me.bush.translator.Translation
 import me.bush.translator.Translator
+import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun MainScreen(navController: NavController) {
-    var textFields by remember { mutableStateOf("") }
-    var showTranslatedCard by remember { mutableStateOf(false) }
-    var translatedText by remember { mutableStateOf("") }
 
-    var fromExpanded by remember { mutableStateOf(false) }
-    var toExpanded by remember { mutableStateOf(false) }
+data class Translation(
+    val translatedText: String,
+    val pronunciation: String? = null,
+    val sourceLanguage: LanguagesItem? = null
+)
 
-    val translator = Translator()
-    val translation = translator.translate("Bush's translator is so cool!", Language.RUSSIAN, Language.AUTO)
-    println(translation.translatedText)
-    println(translation.pronunciation)
-    println(translation.sourceLanguage)
+object Languages {
+    fun fromCode(code: String): LanguagesItem? {
+        return allLanguages.find { it.code == code }
+    }
 
-    Language.ENGLISH == Language("english") == Language("en") == Language("eng")
-
-    Translator translator = new Translator();
-    Translation translation = translator.translateBlocking("...", Language.Companion.INSTANCE.invoke("spanish"));
-    translation.getTranslatedText();
-
-    val languages = listOf(
+    val AUTO = LanguagesItem(name = "English", localName = "English", flag = "🇬🇧", code = "en")
+    val allLanguages = listOf(
         LanguagesItem(name = "English", localName = "English", flag = "🇬🇧", code = "en"),
         LanguagesItem(name = "Spanish", localName = "español", flag = "🇪🇸", code = "es"),
         LanguagesItem(name = "Arabic", localName = "العربية", flag = "🇸🇦", code = "ar"),
@@ -104,7 +117,12 @@ fun MainScreen(navController: NavController) {
         LanguagesItem(name = "Ukrainian", localName = "Українська", flag = "🇺🇦", code = "uk"),
         LanguagesItem(name = "Bulgarian", localName = "Български", flag = "🇧🇬", code = "bg"),
         LanguagesItem(name = "Vietnamese", localName = "Tiếng Việt", flag = "🇻🇳", code = "vi"),
-        LanguagesItem(name = "Indonesian", localName = "Bahasa Indonesia", flag = "🇮🇩",code = "id"),
+        LanguagesItem(
+            name = "Indonesian",
+            localName = "Bahasa Indonesia",
+            flag = "🇮🇩",
+            code = "id"
+        ),
         LanguagesItem(name = "Malay", localName = "Bahasa Melayu", flag = "🇲🇾", code = "ms"),
         LanguagesItem(name = "Swahili", localName = "Kiswahili", flag = "🇰🇪", code = "sw"),
         LanguagesItem(name = "Afrikaans", localName = "Afrikaans", flag = "🇿🇦", code = "af"),
@@ -118,16 +136,99 @@ fun MainScreen(navController: NavController) {
         LanguagesItem(name = "Marathi", localName = "मराठी", flag = "🇮🇳", code = "mr"),
         LanguagesItem(name = "Gujarati", localName = "ગુજરાતી", flag = "🇮🇳", code = "gu")
     )
+}
 
-    var selectedFromLanguage by remember { mutableStateOf(languages.first { it.code == "en" }) }
+
+class Translator {
+    suspend fun translate(
+        text: String,
+        target: LanguagesItem,
+        source: LanguagesItem
+    ): com.example.translatorapp.screen.Translation {
+        println("Attempting to translate '$text' from ${source.name} to ${target.name}")
+        val translatedDummyText = "Translated: \"$text\" into ${target.name}"
+        return Translation(
+            translatedText = translatedDummyText,
+            pronunciation = "Pro-nun-ci-a-tion Placeholder",
+            sourceLanguage = source
+        )
+    }
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MainScreen(navController: NavController) {
+    var textFields by remember { mutableStateOf("") }
+    var showTranslatedCard by remember { mutableStateOf(false) }
+    var translatedText by remember { mutableStateOf("") }
+    var isTranslating by remember { mutableStateOf(false) }
+
+
+    var fromExpanded by remember { mutableStateOf(false) }
+    var toExpanded by remember { mutableStateOf(false) }
+
+    val translator = remember { Translator() }
+    val coroutineScope = rememberCoroutineScope()
+
+
+    val languages = Languages.allLanguages
+    val sourceLanguagesList =
+        remember { mutableStateListOf(Languages.AUTO).apply { addAll(languages) } }
+    val targetLanguagesList = languages
+
+
+    var selectedFromLanguage by remember { mutableStateOf(Languages.AUTO) }
     var selectedToLanguage by remember { mutableStateOf(languages.first { it.code == "es" }) }
+
+    val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { granted ->
+            if (granted) {
+                startSpeechRecognition(context) { result ->
+                    textFields = result
+                }
+            } else {
+                Toast.makeText(context, "Permission Denied", Toast.LENGTH_SHORT).show()
+            }
+        }
+    )
+
+
+
+
+    val tts = remember {
+        TextToSpeech(context, null).apply {
+            language = Locale.getDefault()
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            tts.stop()
+            tts.shutdown()
+        }
+    }
+
+
+    Icon(
+        painter = painterResource(R.drawable.speaker),
+        contentDescription = "Speak Text",
+        tint = Color(0XFF003366),
+        modifier = Modifier.clickable {
+            tts.speak(translatedText, TextToSpeech.QUEUE_FLUSH, null, null)
+        }
+    )
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text = "language Translator",
+                        text = "Language Translator",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color.White,
@@ -201,9 +302,9 @@ fun MainScreen(navController: NavController) {
                                 expanded = fromExpanded,
                                 onDismissRequest = { fromExpanded = false }
                             ) {
-                                languages.forEach { language ->
+                                sourceLanguagesList.forEach { language ->
                                     DropdownMenuItem(
-                                        text = { Text("${language.flag} ${language.name}") },
+                                        text = { Text("${language.flag.orEmpty()} ${language.name}") },
                                         onClick = {
                                             selectedFromLanguage = language
                                             fromExpanded = false
@@ -213,21 +314,24 @@ fun MainScreen(navController: NavController) {
                             }
                         }
                     }
-
                     Image(
                         painter = painterResource(R.drawable.swap),
                         contentDescription = "Swap languages",
                         modifier = Modifier
                             .size(24.dp)
                             .clickable {
-                                val temp = selectedFromLanguage
-                                selectedFromLanguage = selectedToLanguage
-                                selectedToLanguage = temp
-                                textFields = ""
-                                translatedText = ""
-                                showTranslatedCard = false
+                                if (selectedFromLanguage != Languages.AUTO) {
+                                    val temp = selectedFromLanguage
+                                    selectedFromLanguage = selectedToLanguage
+                                    selectedToLanguage = temp
+                                    textFields = ""
+                                    translatedText = ""
+                                    showTranslatedCard = false
+                                } else {
+                                }
                             }
                     )
+
 
                     Box {
                         Row(
@@ -261,9 +365,9 @@ fun MainScreen(navController: NavController) {
                                 expanded = toExpanded,
                                 onDismissRequest = { toExpanded = false }
                             ) {
-                                languages.forEach { language ->
+                                targetLanguagesList.forEach { language ->
                                     DropdownMenuItem(
-                                        text = { Text("${language.flag} ${language.name}") },
+                                        text = { Text("${language.flag.orEmpty()} ${language.name}") },
                                         onClick = {
                                             selectedToLanguage = language
                                             toExpanded = false
@@ -274,7 +378,6 @@ fun MainScreen(navController: NavController) {
                         }
                     }
                 }
-
             }
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -304,7 +407,14 @@ fun MainScreen(navController: NavController) {
                                 color = Color(0XFF003366)
                             )
                         }
-                        IconButton(onClick = { textFields = "" }) {
+                        IconButton(
+                            onClick = {
+                                textFields = ""
+                                translatedText = ""
+                                showTranslatedCard = false
+                                isTranslating = false
+                            }
+                        ) {
                             Icon(
                                 painter = painterResource(id = R.drawable.close),
                                 contentDescription = "Clear Text",
@@ -328,23 +438,21 @@ fun MainScreen(navController: NavController) {
                             textAlign = TextAlign.Start
                         ),
                         singleLine = false,
-                        maxLines = 5,
+                        maxLines = 3,
                         colors = TextFieldDefaults.colors(
                             focusedContainerColor = Color.Transparent,
                             unfocusedContainerColor = Color.Transparent,
                             focusedIndicatorColor = Color.Transparent,
                             unfocusedIndicatorColor = Color.Transparent,
-                            cursorColor = Color.Gray,
-                            focusedTextColor = Color.Black,
-                            unfocusedTextColor = Color.Black,
-                            disabledContainerColor = Color.Transparent,
-                            errorContainerColor = Color.Transparent
+                            cursorColor = Color.Gray
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(1f)
+                            .heightIn(min = 100.dp, max = 160.dp)
+                            .verticalScroll(rememberScrollState())
                             .padding(vertical = 4.dp)
                     )
+
 
                     Spacer(modifier = Modifier.height(8.dp))
 
@@ -362,38 +470,81 @@ fun MainScreen(navController: NavController) {
                                 containerColor = Color(0XFF003366)
                             )
                         ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.mic),
-                                contentDescription = "Mic",
-                                tint = Color.White
-                            )
-                        }
+                            IconButton(
+                                onClick = {
+                                    launcher.launch(Manifest.permission.RECORD_AUDIO)
+                                },
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape),
+                                colors = IconButtonDefaults.iconButtonColors(
+                                    containerColor = Color(0XFF003366)
+                                )
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.mic),
+                                    contentDescription = "Mic",
+                                    tint = Color.White
+                                )
+                            }
 
+                        }
                         Button(
                             onClick = {
-                                translatedText =
-                                    "Translated: ${textFields.take(50)}${if (textFields.length > 50) "..." else ""}" // Simple placeholder
-                                showTranslatedCard = true
+                                if (textFields.isNotBlank() && !isTranslating) {
+                                    isTranslating = true
+                                    showTranslatedCard = false
+                                    translatedText = ""
+
+                                    coroutineScope.launch {
+                                        val translationResult =
+                                            selectedToLanguage.code?.let { Language(it) }?.let {
+                                                selectedFromLanguage.code?.let { Language(it) }
+                                                    ?.let { it1 ->
+                                                        translator.translate(
+                                                            text = textFields,
+                                                            target = it,
+                                                            source = it1
+                                                        )
+                                                    }
+                                            }
+
+
+                                        if (translationResult != null) {
+                                            translatedText = translationResult.translatedText
+                                        }
+                                        showTranslatedCard = true
+                                        isTranslating = false
+
+                                    }
+                                }
                             },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color(0xFFFF6600)
                             ),
                             shape = CircleShape,
-                            // Disable button if input is empty (optional)
-                            enabled = textFields.isNotBlank()
+                            enabled = textFields.isNotBlank() && !isTranslating
                         ) {
-                            Text(
-                                text = "Translate",
-                                color = Color.White,
-                                fontWeight = FontWeight.SemiBold
-                            )
+                            if (isTranslating) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    color = Color.White,
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Text(
+                                    text = "Translate",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
                         }
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
-            if (showTranslatedCard) {
+            if (showTranslatedCard && translatedText.isNotBlank()) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -425,19 +576,33 @@ fun MainScreen(navController: NavController) {
                                 painter = painterResource(R.drawable.speaker),
                                 contentDescription = "Speak Text",
                                 tint = Color(0XFF003366),
-                                modifier = Modifier.clickable { }
+                                modifier = Modifier.clickable {
+                                    if (translatedText.isNotBlank()) {
+                                        tts.speak(translatedText, TextToSpeech.QUEUE_FLUSH, null, null)
+                                    }
+                                }
                             )
+
                         }
 
-                        Text(
-                            text = translatedText,
-                            color = Color.Black,
-                            fontSize = 14.sp,
-                            textAlign = TextAlign.Start,
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(vertical = 8.dp)
-                        )
+                            Text(
+                                text = translatedText,
+                                color = Color.Black,
+                                fontSize = 14.sp,
+                                textAlign = TextAlign.Start,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .verticalScroll(rememberScrollState())
+                                    .padding(vertical = 8.dp)
+                                    .clickable {
+                                        clipboardManager.setText(AnnotatedString(translatedText))
+                                        Toast
+                                            .makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT)
+                                            .show()
+                                    }
+                            )
+
+
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -449,15 +614,33 @@ fun MainScreen(navController: NavController) {
                                 contentDescription = "Copy",
                                 modifier = Modifier
                                     .padding(end = 16.dp)
-                                    .clickable { },
+                                    .clickable {
+                                        clipboardManager.setText(AnnotatedString(translatedText))
+                                        Toast
+                                            .makeText(
+                                                context,
+                                                "Copied to clipboard",
+                                                Toast.LENGTH_SHORT
+                                            )
+                                            .show()
+                                    },
                                 tint = Color(0XFF003366)
                             )
+
                             Icon(
                                 painter = painterResource(R.drawable.share),
                                 contentDescription = "Share",
                                 modifier = Modifier
                                     .padding(end = 16.dp)
-                                    .clickable {},
+                                    .clickable {
+                                        val intent=Intent().apply {
+                                            action=Intent.ACTION_SEND
+                                            putExtra(Intent.EXTRA_TEXT,translatedText)
+                                            type = "text/plain"
+                                        }
+                                        val shareIntent = Intent.createChooser(intent, "Share via")
+                                        context.startActivity(shareIntent)
+                                    },
                                 tint = Color(0XFF003366)
                             )
                             Icon(
@@ -473,4 +656,33 @@ fun MainScreen(navController: NavController) {
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
+}
+
+fun startSpeechRecognition(context: Context, onResult: (String) -> Unit) {
+    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+        putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+    }
+
+    val recognizer = SpeechRecognizer.createSpeechRecognizer(context)
+    recognizer.setRecognitionListener(object : RecognitionListener {
+        override fun onResults(results: Bundle) {
+            val matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+            matches?.firstOrNull()?.let(onResult)
+        }
+
+        override fun onReadyForSpeech(params: Bundle?) {}
+        override fun onBeginningOfSpeech() {}
+        override fun onRmsChanged(rmsdB: Float) {}
+        override fun onBufferReceived(buffer: ByteArray?) {}
+        override fun onEndOfSpeech() {}
+        override fun onError(error: Int) {
+            Toast.makeText(context, "Speech recognition error", Toast.LENGTH_SHORT).show()
+        }
+
+        override fun onPartialResults(partialResults: Bundle?) {}
+        override fun onEvent(eventType: Int, params: Bundle?) {}
+    })
+
+    recognizer.startListening(intent)
 }
