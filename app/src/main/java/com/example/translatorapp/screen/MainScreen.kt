@@ -1,8 +1,10 @@
 package com.example.translatorapp.screen
 
 import android.Manifest
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
@@ -35,18 +37,22 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -77,6 +83,28 @@ import me.bush.translator.Translator
 import java.util.Locale
 
 
+@Composable
+fun SettingItem(icon: Int, text: String, onClick: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .clickable {
+                onClick()
+            }
+            .padding(16.dp)
+    ) {
+        Icon(
+            painter = painterResource(icon),
+            contentDescription = text,
+            modifier = Modifier.size(24.dp),
+            tint = Color.Black
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Text(text = text, color = Color.Black, fontSize = 20.sp)
+    }
+}
+
+
 data class Translation(
     val translatedText: String,
     val pronunciation: String? = null,
@@ -88,7 +116,8 @@ object Languages {
         return allLanguages.find { it.code == code }
     }
 
-    val AUTO = LanguagesItem(name = "English", localName = "English", flag = "🇬🇧", code = "en")
+    val AUTO =
+        LanguagesItem(name = "Auto Detect", localName = "Auto Detect", flag = "🌐", code = "auto")
     val allLanguages = listOf(
         LanguagesItem(name = "English", localName = "English", flag = "🇬🇧", code = "en"),
         LanguagesItem(name = "Spanish", localName = "español", flag = "🇪🇸", code = "es"),
@@ -168,7 +197,9 @@ fun MainScreen(navController: NavController) {
     var fromExpanded by remember { mutableStateOf(false) }
     var toExpanded by remember { mutableStateOf(false) }
 
-    val translator = remember { Translator() }
+    val translator = remember {
+        Translator()
+    }
     val coroutineScope = rememberCoroutineScope()
 
 
@@ -184,6 +215,7 @@ fun MainScreen(navController: NavController) {
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
 
+
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { granted ->
@@ -197,14 +229,12 @@ fun MainScreen(navController: NavController) {
         }
     )
 
-
-
-
     val tts = remember {
         TextToSpeech(context, null).apply {
             language = Locale.getDefault()
         }
     }
+
 
     DisposableEffect(Unit) {
         onDispose {
@@ -213,338 +243,238 @@ fun MainScreen(navController: NavController) {
         }
     }
 
+    var drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
 
-    Icon(
-        painter = painterResource(R.drawable.speaker),
-        contentDescription = "Speak Text",
-        tint = Color(0XFF003366),
-        modifier = Modifier.clickable {
-            tts.speak(translatedText, TextToSpeech.QUEUE_FLUSH, null, null)
-        }
-    )
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Language Translator",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color.White,
-                        modifier = Modifier.padding(start = 20.dp)
-                    )
-                },
-                navigationIcon = {
-                    Icon(
-                        painter = painterResource(R.drawable.menu),
-                        contentDescription = "Menu",
-                        tint = Color.White
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0XFF003366))
-            )
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 16.dp)
-                .background(color = Color.White),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Spacer(modifier = Modifier.height(20.dp))
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                shape = RoundedCornerShape(30.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBFE)),
-                elevation = CardDefaults.elevatedCardElevation(1.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet {
+                Column(
+                    modifier = Modifier.padding(10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Box {
-                        Row(
-                            modifier = Modifier.clickable { fromExpanded = true },
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            selectedFromLanguage.flag?.let {
-                                Box(
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .clip(CircleShape)
-                                        .background(Color.Transparent),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = it,
-                                        fontSize = 20.sp
-                                    )
-                                }
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            selectedFromLanguage.name?.let {
-                                Text(
-                                    text = it,
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = Color.Black
-                                )
-                            }
-                            DropdownMenu(
-                                expanded = fromExpanded,
-                                onDismissRequest = { fromExpanded = false }
-                            ) {
-                                sourceLanguagesList.forEach { language ->
-                                    DropdownMenuItem(
-                                        text = { Text("${language.flag.orEmpty()} ${language.name}") },
-                                        onClick = {
-                                            selectedFromLanguage = language
-                                            fromExpanded = false
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
                     Image(
-                        painter = painterResource(R.drawable.swap),
-                        contentDescription = "Swap languages",
-                        modifier = Modifier
-                            .size(24.dp)
-                            .clickable {
-                                if (selectedFromLanguage != Languages.AUTO) {
-                                    val temp = selectedFromLanguage
-                                    selectedFromLanguage = selectedToLanguage
-                                    selectedToLanguage = temp
-                                    textFields = ""
-                                    translatedText = ""
-                                    showTranslatedCard = false
-                                } else {
-                                }
-                            }
+                        painter = painterResource(R.drawable.translate),
+                        contentDescription = "",
+                        modifier = Modifier.size(width = 99.dp, height = 88.dp)
                     )
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Text(
+                        text = "Translate on the Go",
+                        color = Color.Black,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(40.dp))
 
+                    Column {
+                        SettingItem(icon = R.drawable.group_share, "Share App") {
+                            val packageName = "com.example.translatorapp"
+                            val appLink =
+                                "https://play.google.com/store/apps/details?id=$packageName"
 
-                    Box {
-                        Row(
-                            modifier = Modifier.clickable { toExpanded = true },
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            selectedToLanguage.flag?.let {
-                                Box(
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .clip(CircleShape)
-                                        .background(Color.Transparent),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = it,
-                                        fontSize = 20.sp
-                                    )
-                                }
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_SUBJECT, "Check out this app!")
+                                putExtra(Intent.EXTRA_TEXT, "Hey! Try this app: $appLink")
                             }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            selectedToLanguage.name?.let {
-                                Text(
-                                    text = it,
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = Color.Black
-                                )
+                            context.startActivity(Intent.createChooser(intent, "Share App via"))
+                        }
+                        SettingItem(icon = R.drawable.star, text = "Rate Us") {
+                            val intent = Intent(Intent.ACTION_VIEW).apply {
+                                data = Uri.parse("market://details?id=" + context.packageName)
+                                setPackage("com.android.vending")
                             }
-                            DropdownMenu(
-                                expanded = toExpanded,
-                                onDismissRequest = { toExpanded = false }
-                            ) {
-                                targetLanguagesList.forEach { language ->
-                                    DropdownMenuItem(
-                                        text = { Text("${language.flag.orEmpty()} ${language.name}") },
-                                        onClick = {
-                                            selectedToLanguage = language
-                                            toExpanded = false
-                                        }
-                                    )
-                                }
+                            try {
+                                context.startActivity(intent)
+                            } catch (e: ActivityNotFoundException) {
+                                Toast.makeText(context, "Play Store not found", Toast.LENGTH_SHORT)
+                                    .show()
                             }
                         }
+                        SettingItem(icon = R.drawable.shield_done, "Privacy Policy") {}
+                        SettingItem(icon = R.drawable.feedback, text = "Feedback") {
+                            val emailIntent = Intent(Intent.ACTION_SENDTO).apply {
+                                data = Uri.parse("mailto:")
+                                putExtra(Intent.EXTRA_EMAIL, arrayOf("support@yourapp.com"))
+                                putExtra(Intent.EXTRA_SUBJECT, "App Feedback")
+                            }
+                            try {
+                                context.startActivity(emailIntent)
+                            } catch (e: ActivityNotFoundException) {
+                                Toast.makeText(context, "No email app found", Toast.LENGTH_SHORT)
+                                    .show()
+                            }
+                        }
+
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(20.dp))
-            Card(
+        }
+    ) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = "Language Translator",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.White,
+                            modifier = Modifier.padding(start = 20.dp)
+                        )
+                    },
+                    navigationIcon = {
+                        Icon(
+                            painter = painterResource(R.drawable.menu),
+                            contentDescription = "Menu",
+                            tint = Color.White, modifier = Modifier.clickable {
+                                scope.launch {
+                                    drawerState.open()
+                                }
+                            }
+                        )
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0XFF003366))
+                )
+            }
+        ) { paddingValues ->
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(220.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBFE)),
-                elevation = CardDefaults.elevatedCardElevation(2.dp)
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(horizontal = 16.dp)
+                    .background(color = Color.White),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(
+                Spacer(modifier = Modifier.height(20.dp))
+                Card(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(10.dp)
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = RoundedCornerShape(30.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBFE)),
+                    elevation = CardDefaults.elevatedCardElevation(1.dp)
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        selectedFromLanguage.name?.let {
-                            Text(
-                                text = it,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color(0XFF003366)
-                            )
-                        }
-                        IconButton(
-                            onClick = {
-                                textFields = ""
-                                translatedText = ""
-                                showTranslatedCard = false
-                                isTranslating = false
-                            }
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.close),
-                                contentDescription = "Clear Text",
-                                tint = Color.Gray
-                            )
-                        }
-                    }
-
-                    TextField(
-                        value = textFields,
-                        onValueChange = { textFields = it },
-                        placeholder = {
-                            Text(
-                                text = "Enter text here...",
-                                color = Color(0xFFAAA5B3)
-                            )
-                        },
-                        textStyle = TextStyle(
-                            color = Color.Black,
-                            fontSize = 16.sp,
-                            textAlign = TextAlign.Start
-                        ),
-                        singleLine = false,
-                        maxLines = 3,
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent,
-                            cursorColor = Color.Gray
-                        ),
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 100.dp, max = 160.dp)
-                            .verticalScroll(rememberScrollState())
-                            .padding(vertical = 4.dp)
-                    )
-
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        IconButton(
-                            onClick = { },
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape),
-                            colors = IconButtonDefaults.iconButtonColors(
-                                containerColor = Color(0XFF003366)
-                            )
-                        ) {
-                            IconButton(
-                                onClick = {
-                                    launcher.launch(Manifest.permission.RECORD_AUDIO)
-                                },
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape),
-                                colors = IconButtonDefaults.iconButtonColors(
-                                    containerColor = Color(0XFF003366)
-                                )
+                        Box {
+                            Row(
+                                modifier = Modifier.clickable { fromExpanded = true },
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.mic),
-                                    contentDescription = "Mic",
-                                    tint = Color.White
-                                )
-                            }
-
-                        }
-                        Button(
-                            onClick = {
-                                if (textFields.isNotBlank() && !isTranslating) {
-                                    isTranslating = true
-                                    showTranslatedCard = false
-                                    translatedText = ""
-
-                                    coroutineScope.launch {
-                                        val translationResult =
-                                            selectedToLanguage.code?.let { Language(it) }?.let {
-                                                selectedFromLanguage.code?.let { Language(it) }
-                                                    ?.let { it1 ->
-                                                        translator.translate(
-                                                            text = textFields,
-                                                            target = it,
-                                                            source = it1
-                                                        )
-                                                    }
-                                            }
-
-
-                                        if (translationResult != null) {
-                                            translatedText = translationResult.translatedText
-                                        }
-                                        showTranslatedCard = true
-                                        isTranslating = false
-
+                                selectedFromLanguage.flag?.let {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .clip(CircleShape)
+                                            .background(Color.Transparent),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = it,
+                                            fontSize = 20.sp
+                                        )
                                     }
                                 }
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFFF6600)
-                            ),
-                            shape = CircleShape,
-                            enabled = textFields.isNotBlank() && !isTranslating
-                        ) {
-                            if (isTranslating) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    color = Color.White,
-                                    strokeWidth = 2.dp
-                                )
-                            } else {
-                                Text(
-                                    text = "Translate",
-                                    color = Color.White,
-                                    fontWeight = FontWeight.SemiBold
-                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                selectedFromLanguage.name?.let {
+                                    Text(
+                                        text = it,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color.Black
+                                    )
+                                }
+                                DropdownMenu(
+                                    expanded = fromExpanded,
+                                    onDismissRequest = { fromExpanded = false }
+                                ) {
+                                    sourceLanguagesList.forEach { language ->
+                                        DropdownMenuItem(
+                                            text = { Text("${language.flag.orEmpty()} ${language.name}") },
+                                            onClick = {
+                                                selectedFromLanguage = language
+                                                fromExpanded = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        Image(
+                            painter = painterResource(R.drawable.swap),
+                            contentDescription = "Swap languages",
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clickable {
+                                    if (selectedFromLanguage != Languages.AUTO) {
+                                        val temp = selectedFromLanguage
+                                        selectedFromLanguage = selectedToLanguage
+                                        selectedToLanguage = temp
+                                        textFields = ""
+                                        translatedText = ""
+                                        showTranslatedCard = false
+                                    } else {
+                                    }
+                                }
+                        )
+
+
+                        Box {
+                            Row(
+                                modifier = Modifier.clickable { toExpanded = true },
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                selectedToLanguage.flag?.let {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .clip(CircleShape)
+                                            .background(Color.Transparent),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = it,
+                                            fontSize = 20.sp
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                selectedToLanguage.name?.let {
+                                    Text(
+                                        text = it,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color.Black
+                                    )
+                                }
+                                DropdownMenu(
+                                    expanded = toExpanded,
+                                    onDismissRequest = { toExpanded = false }
+                                ) {
+                                    targetLanguagesList.forEach { language ->
+                                        DropdownMenuItem(
+                                            text = { Text("${language.flag.orEmpty()} ${language.name}") },
+                                            onClick = {
+                                                selectedToLanguage = language
+                                                toExpanded = false
+                                            }
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(20.dp))
-            if (showTranslatedCard && translatedText.isNotBlank()) {
+                Spacer(modifier = Modifier.height(20.dp))
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -556,34 +486,203 @@ fun MainScreen(navController: NavController) {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(12.dp),
-                        verticalArrangement = Arrangement.SpaceBetween
+                            .padding(10.dp)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            selectedToLanguage.name?.let {
+                            selectedFromLanguage.name?.let {
                                 Text(
                                     text = it,
-                                    color = Color(0xFF1A1A1A),
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 14.sp
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0XFF003366)
                                 )
                             }
-                            Icon(
-                                painter = painterResource(R.drawable.speaker),
-                                contentDescription = "Speak Text",
-                                tint = Color(0XFF003366),
-                                modifier = Modifier.clickable {
-                                    if (translatedText.isNotBlank()) {
-                                        tts.speak(translatedText, TextToSpeech.QUEUE_FLUSH, null, null)
-                                    }
+                            IconButton(
+                                onClick = {
+                                    textFields = ""
+                                    translatedText = ""
+                                    showTranslatedCard = false
+                                    isTranslating = false
                                 }
-                            )
-
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.close),
+                                    contentDescription = "Clear Text",
+                                    tint = Color.Gray
+                                )
+                            }
                         }
+
+                        TextField(
+                            value = textFields,
+                            onValueChange = { textFields = it },
+                            placeholder = {
+                                Text(
+                                    text = "Enter text here...",
+                                    color = Color(0xFFAAA5B3)
+                                )
+                            },
+                            textStyle = TextStyle(
+                                color = Color.Black,
+                                fontSize = 16.sp,
+                                textAlign = TextAlign.Start
+                            ),
+                            singleLine = false,
+                            maxLines = 3,
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent,
+                                cursorColor = Color.Gray
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 100.dp, max = 160.dp)
+                                .verticalScroll(rememberScrollState())
+                                .padding(vertical = 4.dp)
+                        )
+
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(
+                                onClick = { },
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape),
+                                colors = IconButtonDefaults.iconButtonColors(
+                                    containerColor = Color(0XFF003366)
+                                )
+                            ) {
+                                IconButton(
+                                    onClick = {
+                                        launcher.launch(Manifest.permission.RECORD_AUDIO)
+                                    },
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape),
+                                    colors = IconButtonDefaults.iconButtonColors(
+                                        containerColor = Color(0XFF003366)
+                                    )
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.mic),
+                                        contentDescription = "Mic",
+                                        tint = Color.White
+                                    )
+                                }
+
+                            }
+                            Button(
+                                onClick = {
+                                    if (textFields.isNotBlank() && !isTranslating) {
+                                        isTranslating = true
+                                        showTranslatedCard = false
+                                        translatedText = ""
+
+                                        coroutineScope.launch {
+                                            val translationResult =
+                                                selectedToLanguage.code?.let { Language(it) }?.let {
+                                                    selectedFromLanguage.code?.let { Language(it) }
+                                                        ?.let { it1 ->
+                                                            translator.translate(
+                                                                text = textFields,
+                                                                target = it,
+                                                                source = it1
+                                                            )
+                                                        }
+                                                }
+
+
+                                            if (translationResult != null) {
+                                                translatedText = translationResult.translatedText
+                                            }
+                                            showTranslatedCard = true
+                                            isTranslating = false
+
+                                        }
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFFFF6600)
+                                ),
+                                shape = CircleShape,
+                                enabled = textFields.isNotBlank() && !isTranslating
+                            ) {
+                                if (isTranslating) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        color = Color.White,
+                                        strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    Text(
+                                        text = "Translate",
+                                        color = Color.White,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+                if (showTranslatedCard && translatedText.isNotBlank()) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(220.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBFE)),
+                        elevation = CardDefaults.elevatedCardElevation(2.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                selectedToLanguage.name?.let {
+                                    Text(
+                                        text = it,
+                                        color = Color(0xFF1A1A1A),
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 14.sp
+                                    )
+                                }
+                                Icon(
+                                    painter = painterResource(R.drawable.speaker),
+                                    contentDescription = "Speak Text",
+                                    tint = Color(0XFF003366),
+                                    modifier = Modifier.clickable {
+                                        if (translatedText.isNotBlank()) {
+                                            tts.speak(
+                                                translatedText,
+                                                TextToSpeech.QUEUE_FLUSH,
+                                                null,
+                                                null
+                                            )
+                                        }
+                                    }
+                                )
+
+                            }
 
                             Text(
                                 text = translatedText,
@@ -597,63 +696,69 @@ fun MainScreen(navController: NavController) {
                                     .clickable {
                                         clipboardManager.setText(AnnotatedString(translatedText))
                                         Toast
-                                            .makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT)
-                                            .show()
-                                    }
-                            )
-
-
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.copy),
-                                contentDescription = "Copy",
-                                modifier = Modifier
-                                    .padding(end = 16.dp)
-                                    .clickable {
-                                        clipboardManager.setText(AnnotatedString(translatedText))
-                                        Toast
                                             .makeText(
                                                 context,
                                                 "Copied to clipboard",
                                                 Toast.LENGTH_SHORT
                                             )
                                             .show()
-                                    },
-                                tint = Color(0XFF003366)
+                                    }
                             )
 
-                            Icon(
-                                painter = painterResource(R.drawable.share),
-                                contentDescription = "Share",
-                                modifier = Modifier
-                                    .padding(end = 16.dp)
-                                    .clickable {
-                                        val intent=Intent().apply {
-                                            action=Intent.ACTION_SEND
-                                            putExtra(Intent.EXTRA_TEXT,translatedText)
-                                            type = "text/plain"
-                                        }
-                                        val shareIntent = Intent.createChooser(intent, "Share via")
-                                        context.startActivity(shareIntent)
-                                    },
-                                tint = Color(0XFF003366)
-                            )
-                            Icon(
-                                painter = painterResource(R.drawable.star),
-                                contentDescription = "Favorite",
-                                modifier = Modifier.clickable { },
-                                tint = Color(0XFF003366)
-                            )
+
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.copy),
+                                    contentDescription = "Copy",
+                                    modifier = Modifier
+                                        .padding(end = 16.dp)
+                                        .clickable {
+                                            clipboardManager.setText(AnnotatedString(translatedText))
+                                            Toast
+                                                .makeText(
+                                                    context,
+                                                    "Copied to clipboard",
+                                                    Toast.LENGTH_SHORT
+                                                )
+                                                .show()
+                                        },
+                                    tint = Color(0XFF003366)
+                                )
+
+                                Icon(
+                                    painter = painterResource(R.drawable.share),
+                                    contentDescription = "Share",
+                                    modifier = Modifier
+                                        .padding(end = 16.dp)
+                                        .clickable {
+                                            val intent = Intent().apply {
+                                                action = Intent.ACTION_SEND
+                                                putExtra(Intent.EXTRA_TEXT, translatedText)
+                                                type = "text/plain"
+                                            }
+                                            val shareIntent =
+                                                Intent.createChooser(intent, "Share via")
+                                            context.startActivity(shareIntent)
+                                        },
+                                    tint = Color(0XFF003366)
+                                )
+                                Icon(
+                                    painter = painterResource(R.drawable.star),
+                                    contentDescription = "Favorite",
+                                    modifier = Modifier.clickable { },
+                                    tint = Color(0XFF003366)
+                                )
+                            }
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(16.dp))
             }
-            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }

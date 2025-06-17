@@ -15,6 +15,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -124,14 +127,21 @@ fun BottomNavigation(navController: NavHostController) {
     }
 }
 
-
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun NavEntry() {
     val navController = rememberNavController()
+    var showBottomNav by remember { mutableStateOf(true) }
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    val showBottomNav = currentRoute != Screen.SplashScreen.route
+
+
+    showBottomNav = when {
+        currentRoute == null -> true
+        currentRoute.contains(Screen.SplashScreen.route) -> false
+
+        else -> true
+    }
 
     Scaffold(
         bottomBar = {
@@ -139,7 +149,7 @@ fun NavEntry() {
                 BottomNavigation(navController = navController)
             }
         }
-    ) {
-        Navigation(navController = navController)
+    ) { innerPadding ->
+        Navigation(navController)
     }
 }
