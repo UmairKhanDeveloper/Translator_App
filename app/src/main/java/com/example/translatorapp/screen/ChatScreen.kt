@@ -134,7 +134,12 @@ fun ChatScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Voice Conversation", color = Color.White) },
+                title = {
+                    Text(
+                        "Voice Conversation",
+                        color = Color.White, modifier = Modifier.padding(start = 20.dp)
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = { }) {
                         Icon(
