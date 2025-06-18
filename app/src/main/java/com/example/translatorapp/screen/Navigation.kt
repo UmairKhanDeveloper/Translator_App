@@ -140,6 +140,7 @@ fun NavEntry() {
         currentRoute == null -> true
         currentRoute.contains(Screen.SplashScreen.route) -> false
 
+
         else -> true
     }
 
