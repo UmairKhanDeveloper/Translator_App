@@ -82,7 +82,11 @@ data class TranslationChat(
     val pronunciation: String? = null,
     val sourceLanguage: LanguagesItem? = null
 )
-
+data class Translation(
+    val translatedText: String,
+    val pronunciation: String? = null,
+    val sourceLanguage: LanguagesItem? = null
+)
 object LanguagesChat {
     fun fromCode(code: String): LanguagesItem? {
         return allLanguages.find { it.code == code }
@@ -118,12 +122,7 @@ object LanguagesChat {
         LanguagesItem(name = "Ukrainian", localName = "Українська", flag = "🇺🇦", code = "uk"),
         LanguagesItem(name = "Bulgarian", localName = "Български", flag = "🇧🇬", code = "bg"),
         LanguagesItem(name = "Vietnamese", localName = "Tiếng Việt", flag = "🇻🇳", code = "vi"),
-        LanguagesItem(
-            name = "Indonesian",
-            localName = "Bahasa Indonesia",
-            flag = "🇮🇩",
-            code = "id"
-        ),
+        LanguagesItem(name = "Indonesian", localName = "Bahasa Indonesia", flag = "🇮🇩", code = "id"),
         LanguagesItem(name = "Malay", localName = "Bahasa Melayu", flag = "🇲🇾", code = "ms"),
         LanguagesItem(name = "Swahili", localName = "Kiswahili", flag = "🇰🇪", code = "sw"),
         LanguagesItem(name = "Afrikaans", localName = "Afrikaans", flag = "🇿🇦", code = "af"),
@@ -163,6 +162,7 @@ data class ChatItem(
     val originalLang: LanguagesItem? = null
 )
 
+
 private fun getSpeechRecognizerIntent(
     prompt: String? = null,
     languageCode: String? = null
@@ -188,7 +188,8 @@ fun ChatScreen(navController: NavHostController) {
     var fromExpanded by remember { mutableStateOf(false) }
     var toExpanded by remember { mutableStateOf(false) }
     val languages = LanguagesChat.allLanguages
-    val sourceLanguagesList = remember { mutableStateListOf(LanguagesChat.AUTO).apply { addAll(languages) } }
+    val sourceLanguagesList =
+        remember { mutableStateListOf(LanguagesChat.AUTO).apply { addAll(languages) } }
     val targetLanguagesList = remember { mutableStateListOf(LanguagesChat.allLanguages) }
 
     var selectedFromLanguage by remember { mutableStateOf(LanguagesChat.AUTO) }
@@ -215,7 +216,11 @@ fun ChatScreen(navController: NavHostController) {
                 Locale.forLanguageTag(selectedToLanguage.code)
             } catch (e: Exception) {
                 e.printStackTrace()
-                Toast.makeText(context, "Invalid locale for TTS: ${selectedToLanguage.code}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    context,
+                    "Invalid locale for TTS: ${selectedToLanguage.code}",
+                    Toast.LENGTH_SHORT
+                ).show()
                 Locale.getDefault()
             }
 
@@ -304,7 +309,9 @@ fun ChatScreen(navController: NavHostController) {
                         }
 
                         println("Translated: '${translation.translatedText}' (Detected Source: ${translation.sourceLanguage?.code})")
-                        val actualSourceLang = translation.sourceLanguage?.code?.let { LanguagesChat.fromCode(it) } ?: selectedFromLanguage
+                        val actualSourceLang =
+                            translation.sourceLanguage?.code?.let { LanguagesChat.fromCode(it) }
+                                ?: selectedFromLanguage
 
                         chatItems.add(
                             ChatItem(
@@ -332,7 +339,11 @@ fun ChatScreen(navController: NavHostController) {
                 Toast.makeText(context, "No speech recognized", Toast.LENGTH_SHORT).show()
             }
         } else if (result.resultCode != android.app.Activity.RESULT_CANCELED) {
-            Toast.makeText(context, "Speech recognition failed. Result Code: ${result.resultCode}", Toast.LENGTH_SHORT)
+            Toast.makeText(
+                context,
+                "Speech recognition failed. Result Code: ${result.resultCode}",
+                Toast.LENGTH_SHORT
+            )
                 .show()
         } else {
             Toast.makeText(context, "Speech recognition cancelled.", Toast.LENGTH_SHORT).show()
@@ -350,18 +361,19 @@ fun ChatScreen(navController: NavHostController) {
                 coroutineScope.launch {
                     isTranslating = true
                     try {
-                        val sourceCode = Language.values().firstOrNull { it.code == selectedToLanguage.code }
-                            ?: run {
-                                withContext(Dispatchers.Main) {
-                                    Toast.makeText(
-                                        context,
-                                        "Source language ${selectedToLanguage.name} not supported by translator for detection.",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                        val sourceCode =
+                            Language.values().firstOrNull { it.code == selectedToLanguage.code }
+                                ?: run {
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(
+                                            context,
+                                            "Source language ${selectedToLanguage.name} not supported by translator for detection.",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                    isTranslating = false
+                                    return@launch
                                 }
-                                isTranslating = false
-                                return@launch
-                            }
                         val targetCode = if (selectedFromLanguage == LanguagesChat.AUTO) {
                             Language.values().firstOrNull { it.code == selectedFromLanguage.code }
                                 ?: Language.AUTO.also {
@@ -402,7 +414,9 @@ fun ChatScreen(navController: NavHostController) {
                         println("Translated: '${translation.translatedText}' (Detected Source: ${translation.sourceLanguage?.code})")
 
 
-                        val actualSourceLang = translation.sourceLanguage?.code?.let { LanguagesChat.fromCode(it) } ?: selectedToLanguage
+                        val actualSourceLang =
+                            translation.sourceLanguage?.code?.let { LanguagesChat.fromCode(it) }
+                                ?: selectedToLanguage
 
                         chatItems.add(
                             ChatItem(
@@ -430,13 +444,16 @@ fun ChatScreen(navController: NavHostController) {
                 Toast.makeText(context, "No speech recognized", Toast.LENGTH_SHORT).show()
             }
         } else if (result.resultCode != android.app.Activity.RESULT_CANCELED) {
-            Toast.makeText(context, "Speech recognition failed. Result Code: ${result.resultCode}", Toast.LENGTH_SHORT)
+            Toast.makeText(
+                context,
+                "Speech recognition failed. Result Code: ${result.resultCode}",
+                Toast.LENGTH_SHORT
+            )
                 .show()
         } else {
             Toast.makeText(context, "Speech recognition cancelled.", Toast.LENGTH_SHORT).show()
         }
     }
-
 
 
     val requestPermissionLauncher = rememberLauncherForActivityResult(
@@ -480,7 +497,11 @@ fun ChatScreen(navController: NavHostController) {
                 }
 
                 null -> {
-                    Toast.makeText(context, "Mic click state lost, cannot start speech.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        context,
+                        "Mic click state lost, cannot start speech.",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
             lastMicClickedIsLeft = null
@@ -505,8 +526,7 @@ fun ChatScreen(navController: NavHostController) {
             TopAppBar(
                 title = {
                     Text(
-                        "Voice Conversation",
-                        style = MaterialTheme.typography.titleLarge.copy(color = Color.White),
+                        "Voice Conversation", fontSize = 18.sp, color = Color.White,
                         modifier = Modifier.padding(start = 8.dp)
                     )
                 },
@@ -779,7 +799,7 @@ fun ChatBubble(
 ) {
     val context = LocalContext.current
     val isUser = chat.isUser
-    val bubbleColor = if (isUser) Color(0xFFFFFBFE) else Color(0xFFFFFBFE)
+    val bubbleColor = if (isUser) Color(0xFF003366).copy(alpha = 0.100f)else Color(0xFFFF6600).copy(alpha = 0.100f)
     val alignment = if (isUser) Arrangement.End else Arrangement.Start
     val horizontalAlign = if (isUser) Alignment.End else Alignment.Start
 
@@ -903,6 +923,7 @@ fun ChatBubble(
         }
     }
 }
+
 
 
 private fun getTranslatorLanguage(languageItem: LanguagesItem): Language? {

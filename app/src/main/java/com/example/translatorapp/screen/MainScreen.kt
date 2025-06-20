@@ -1,9 +1,11 @@
 package com.example.translatorapp.screen
 
 import android.Manifest
+import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.speech.RecognitionListener
@@ -56,6 +58,7 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -74,13 +77,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import com.example.texttranslater.domain.model.language.LanguagesItem
 import com.example.translatorapp.R
+import com.example.translatorapp.db.MainViewModel
+import com.example.translatorapp.db.NoteDataBase
+import com.example.translatorapp.db.Repository
 import kotlinx.coroutines.launch
 import me.bush.translator.Language
 import me.bush.translator.Translator
 import java.util.Locale
+
 
 
 @Composable
@@ -105,7 +113,7 @@ fun SettingItem(icon: Int, text: String, onClick: () -> Unit) {
 }
 
 
-data class Translation(
+data class ScreenTranslation(
     val translatedText: String,
     val pronunciation: String? = null,
     val sourceLanguage: LanguagesItem? = null
@@ -168,26 +176,17 @@ object Languages {
 }
 
 
-class Translator {
-    suspend fun translate(
-        text: String,
-        target: LanguagesItem,
-        source: LanguagesItem
-    ): com.example.translatorapp.screen.Translation {
-        println("Attempting to translate '$text' from ${source.name} to ${target.name}")
-        val translatedDummyText = "Translated: \"$text\" into ${target.name}"
-        return Translation(
-            translatedText = translatedDummyText,
-            pronunciation = "Pro-nun-ci-a-tion Placeholder",
-            sourceLanguage = source
-        )
-    }
-}
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(navController: NavController) {
+    val context = LocalContext.current
+    val translateDatabase = remember { NoteDataBase.getDataBase(context) }
+    val repository = remember { Repository(translateDatabase) }
+    val viewModel = remember { MainViewModel(repository) }
+     val notesList by viewModel.allTranslate.observeAsState(initial = emptyList())
+
     var textFields by remember { mutableStateOf("") }
     var showTranslatedCard by remember { mutableStateOf(false) }
     var translatedText by remember { mutableStateOf("") }
@@ -197,9 +196,8 @@ fun MainScreen(navController: NavController) {
     var fromExpanded by remember { mutableStateOf(false) }
     var toExpanded by remember { mutableStateOf(false) }
 
-    val translator = remember {
-        Translator()
-    }
+
+    val translator = remember { Translator() }
     val coroutineScope = rememberCoroutineScope()
 
 
@@ -213,28 +211,53 @@ fun MainScreen(navController: NavController) {
     var selectedToLanguage by remember { mutableStateOf(languages.first { it.code == "es" }) }
 
     val clipboardManager = LocalClipboardManager.current
-    val context = LocalContext.current
 
 
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { granted ->
-            if (granted) {
-                startSpeechRecognition(context) { result ->
-                    textFields = result
+
+    val speechRecognitionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult(),
+        onResult = { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                val spokenText: ArrayList<String>? =
+                    result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+                spokenText?.let {
+                    if (it.isNotEmpty()) {
+                        textFields = it[0]
+                    }
                 }
-            } else {
-                Toast.makeText(context, "Permission Denied", Toast.LENGTH_SHORT).show()
+            } else if (result.resultCode == Activity.RESULT_CANCELED) {
+                Toast.makeText(context, "Speech input cancelled", Toast.LENGTH_SHORT).show()
             }
         }
     )
 
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { granted ->
+            if (granted) {
+                val speechIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, if (selectedFromLanguage != Languages.AUTO) selectedFromLanguage.code else Locale.getDefault().language)
+                    putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak now...")
+                }
+                try {
+                    speechRecognitionLauncher.launch(speechIntent)
+                } catch (e: ActivityNotFoundException) {
+                    Toast.makeText(context, "Speech recognizer not available on this device", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                Toast.makeText(context, "Microphone permission denied", Toast.LENGTH_SHORT).show()
+            }
+        }
+    )
+
+
+
     val tts = remember {
         TextToSpeech(context, null).apply {
-            language = Locale.getDefault()
         }
     }
-
 
     DisposableEffect(Unit) {
         onDispose {
@@ -243,7 +266,7 @@ fun MainScreen(navController: NavController) {
         }
     }
 
-    var drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
     ModalNavigationDrawer(
@@ -251,7 +274,9 @@ fun MainScreen(navController: NavController) {
         drawerContent = {
             ModalDrawerSheet {
                 Column(
-                    modifier = Modifier.padding(10.dp),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Image(
@@ -270,7 +295,7 @@ fun MainScreen(navController: NavController) {
 
                     Column {
                         SettingItem(icon = R.drawable.group_share, "Share App") {
-                            val packageName = "com.example.translatorapp"
+                            val packageName = context.packageName
                             val appLink =
                                 "https://play.google.com/store/apps/details?id=$packageName"
 
@@ -293,19 +318,25 @@ fun MainScreen(navController: NavController) {
                                     .show()
                             }
                         }
-                        SettingItem(icon = R.drawable.shield_done, "Privacy Policy") {}
+                        SettingItem(icon = R.drawable.shield_done, "Privacy Policy") {
+                            Toast.makeText(context, "Privacy Policy Clicked", Toast.LENGTH_SHORT).show()
+                        }
                         SettingItem(icon = R.drawable.feedback, text = "Feedback") {
                             val emailIntent = Intent(Intent.ACTION_SENDTO).apply {
                                 data = Uri.parse("mailto:")
                                 putExtra(Intent.EXTRA_EMAIL, arrayOf("support@yourapp.com"))
                                 putExtra(Intent.EXTRA_SUBJECT, "App Feedback")
+                                putExtra(Intent.EXTRA_TEXT, "App Version: ${context.packageManager.getPackageInfo(context.packageName, 0).versionName}\n\nFeedback:\n") // Include app version
                             }
                             try {
-                                context.startActivity(emailIntent)
+                                context.startActivity(Intent.createChooser(emailIntent, "Send Feedback"))
                             } catch (e: ActivityNotFoundException) {
                                 Toast.makeText(context, "No email app found", Toast.LENGTH_SHORT)
                                     .show()
                             }
+                        }
+                        SettingItem(icon = R.drawable.history, text = "History") {
+                            navController.navigate("history_screen")
                         }
 
                     }
@@ -326,15 +357,19 @@ fun MainScreen(navController: NavController) {
                         )
                     },
                     navigationIcon = {
-                        Icon(
-                            painter = painterResource(R.drawable.menu),
-                            contentDescription = "Menu",
-                            tint = Color.White, modifier = Modifier.clickable {
+                        IconButton(
+                            onClick = {
                                 scope.launch {
                                     drawerState.open()
                                 }
                             }
-                        )
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.menu),
+                                contentDescription = "Menu",
+                                tint = Color.White
+                            )
+                        }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0XFF003366))
                 )
@@ -344,8 +379,7 @@ fun MainScreen(navController: NavController) {
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .padding(horizontal = 16.dp)
-                    .background(color = Color.White),
+                    .padding(horizontal = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Spacer(modifier = Modifier.height(20.dp))
@@ -421,11 +455,12 @@ fun MainScreen(navController: NavController) {
                                         textFields = ""
                                         translatedText = ""
                                         showTranslatedCard = false
+                                        isTranslating = false
                                     } else {
+                                        Toast.makeText(context, "Cannot swap when source is Auto Detect", Toast.LENGTH_SHORT).show()
                                     }
                                 }
                         )
-
 
                         Box {
                             Row(
@@ -516,7 +551,6 @@ fun MainScreen(navController: NavController) {
                                 )
                             }
                         }
-
                         TextField(
                             value = textFields,
                             onValueChange = { textFields = it },
@@ -547,7 +581,6 @@ fun MainScreen(navController: NavController) {
                                 .padding(vertical = 4.dp)
                         )
 
-
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Row(
@@ -556,7 +589,28 @@ fun MainScreen(navController: NavController) {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             IconButton(
-                                onClick = { },
+                                onClick = {
+                                    when (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)) {
+                                        PackageManager.PERMISSION_GRANTED -> {
+                                            val speechIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                                putExtra(RecognizerIntent.EXTRA_LANGUAGE, if (selectedFromLanguage != Languages.AUTO) selectedFromLanguage.code else Locale.getDefault().language)
+                                                putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak now...") // Optional: add a prompt
+                                            }
+                                            try {
+                                                speechRecognitionLauncher.launch(speechIntent)
+                                            } catch (e: ActivityNotFoundException) {
+                                                Toast.makeText(context, "Speech recognizer not available", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                        PackageManager.PERMISSION_DENIED -> {
+                                            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                        }
+                                        else -> {
+                                            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                        }
+                                    }
+                                },
                                 modifier = Modifier
                                     .size(40.dp)
                                     .clip(CircleShape),
@@ -564,24 +618,11 @@ fun MainScreen(navController: NavController) {
                                     containerColor = Color(0XFF003366)
                                 )
                             ) {
-                                IconButton(
-                                    onClick = {
-                                        launcher.launch(Manifest.permission.RECORD_AUDIO)
-                                    },
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(CircleShape),
-                                    colors = IconButtonDefaults.iconButtonColors(
-                                        containerColor = Color(0XFF003366)
-                                    )
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.mic),
-                                        contentDescription = "Mic",
-                                        tint = Color.White
-                                    )
-                                }
-
+                                Icon(
+                                    painter = painterResource(id = R.drawable.mic),
+                                    contentDescription = "Mic",
+                                    tint = Color.White
+                                )
                             }
                             Button(
                                 onClick = {
@@ -610,8 +651,11 @@ fun MainScreen(navController: NavController) {
                                             showTranslatedCard = true
                                             isTranslating = false
 
+
+
                                         }
                                     }
+
                                 },
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = Color(0xFFFF6600)
@@ -672,6 +716,22 @@ fun MainScreen(navController: NavController) {
                                     tint = Color(0XFF003366),
                                     modifier = Modifier.clickable {
                                         if (translatedText.isNotBlank()) {
+                                            val targetLocale = selectedToLanguage.code?.let {
+                                                try {
+                                                    Locale(it)
+                                                } catch (e: Exception) {
+                                                    Locale.getDefault()
+                                                }
+                                            } ?: Locale.getDefault()
+
+                                            val result = tts.setLanguage(targetLocale)
+
+                                            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                                                Toast.makeText(context, "Language not supported for speech", Toast.LENGTH_SHORT).show()
+                                                tts.language = Locale.getDefault()
+                                            }
+
+
                                             tts.speak(
                                                 translatedText,
                                                 TextToSpeech.QUEUE_FLUSH,
@@ -694,18 +754,16 @@ fun MainScreen(navController: NavController) {
                                     .verticalScroll(rememberScrollState())
                                     .padding(vertical = 8.dp)
                                     .clickable {
-                                        clipboardManager.setText(AnnotatedString(translatedText))
-                                        Toast
-                                            .makeText(
+                                        if (translatedText.isNotBlank()) {
+                                            clipboardManager.setText(AnnotatedString(translatedText))
+                                            Toast.makeText(
                                                 context,
                                                 "Copied to clipboard",
                                                 Toast.LENGTH_SHORT
-                                            )
-                                            .show()
+                                            ).show()
+                                        }
                                     }
                             )
-
-
 
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -718,39 +776,42 @@ fun MainScreen(navController: NavController) {
                                     modifier = Modifier
                                         .padding(end = 16.dp)
                                         .clickable {
-                                            clipboardManager.setText(AnnotatedString(translatedText))
-                                            Toast
-                                                .makeText(
+                                            if (translatedText.isNotBlank()) {
+                                                clipboardManager.setText(AnnotatedString(translatedText))
+                                                Toast.makeText(
                                                     context,
                                                     "Copied to clipboard",
                                                     Toast.LENGTH_SHORT
-                                                )
-                                                .show()
+                                                ).show()
+                                            }
                                         },
                                     tint = Color(0XFF003366)
                                 )
-
                                 Icon(
                                     painter = painterResource(R.drawable.share),
                                     contentDescription = "Share",
                                     modifier = Modifier
                                         .padding(end = 16.dp)
                                         .clickable {
-                                            val intent = Intent().apply {
-                                                action = Intent.ACTION_SEND
-                                                putExtra(Intent.EXTRA_TEXT, translatedText)
-                                                type = "text/plain"
+                                            if (translatedText.isNotBlank()) {
+                                                val intent = Intent().apply {
+                                                    action = Intent.ACTION_SEND
+                                                    putExtra(Intent.EXTRA_TEXT, translatedText)
+                                                    type = "text/plain"
+                                                }
+                                                val shareIntent =
+                                                    Intent.createChooser(intent, "Share via")
+                                                context.startActivity(shareIntent)
                                             }
-                                            val shareIntent =
-                                                Intent.createChooser(intent, "Share via")
-                                            context.startActivity(shareIntent)
                                         },
                                     tint = Color(0XFF003366)
                                 )
                                 Icon(
                                     painter = painterResource(R.drawable.star),
                                     contentDescription = "Favorite",
-                                    modifier = Modifier.clickable { },
+                                    modifier = Modifier.clickable {
+
+                                    },
                                     tint = Color(0XFF003366)
                                 )
                             }
@@ -763,31 +824,3 @@ fun MainScreen(navController: NavController) {
     }
 }
 
-fun startSpeechRecognition(context: Context, onResult: (String) -> Unit) {
-    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-        putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
-    }
-
-    val recognizer = SpeechRecognizer.createSpeechRecognizer(context)
-    recognizer.setRecognitionListener(object : RecognitionListener {
-        override fun onResults(results: Bundle) {
-            val matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-            matches?.firstOrNull()?.let(onResult)
-        }
-
-        override fun onReadyForSpeech(params: Bundle?) {}
-        override fun onBeginningOfSpeech() {}
-        override fun onRmsChanged(rmsdB: Float) {}
-        override fun onBufferReceived(buffer: ByteArray?) {}
-        override fun onEndOfSpeech() {}
-        override fun onError(error: Int) {
-            Toast.makeText(context, "Speech recognition error", Toast.LENGTH_SHORT).show()
-        }
-
-        override fun onPartialResults(partialResults: Bundle?) {}
-        override fun onEvent(eventType: Int, params: Bundle?) {}
-    })
-
-    recognizer.startListening(intent)
-}
