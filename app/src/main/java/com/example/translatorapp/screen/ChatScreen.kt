@@ -62,7 +62,6 @@ import androidx.compose.ui.platform.ClipboardManager
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -797,11 +796,13 @@ fun ChatBubble(
     tts: TextToSpeech,
     clipboardManager: ClipboardManager
 ) {
-    val context = LocalContext.current
-    val isUser = chat.isUser
-    val bubbleColor = if (isUser) Color(0xFF003366).copy(alpha = 0.100f)else Color(0xFFFF6600).copy(alpha = 0.100f)
-    val alignment = if (isUser) Arrangement.End else Arrangement.Start
-    val horizontalAlign = if (isUser) Alignment.End else Alignment.Start
+
+    val bubbleColor = if (chat.isUser) Color(0xFF003366).copy(alpha = 0.08f)
+    else Color(0xFFFF6600).copy(alpha = 0.08f)
+
+    val alignment = if (chat.isUser) Arrangement.End else Arrangement.Start
+    val bubbleShape = RoundedCornerShape(12.dp)
+    val horizontalAlign = if (chat.isUser) Alignment.End else Alignment.Start
 
     Row(
         modifier = Modifier
@@ -814,111 +815,29 @@ fun ChatBubble(
         ) {
             Column(
                 modifier = Modifier
-                    .background(bubbleColor, shape = RoundedCornerShape(16.dp))
+                    .background(color = bubbleColor, shape = bubbleShape)
                     .padding(12.dp)
                     .widthIn(max = 300.dp),
                 horizontalAlignment = horizontalAlign
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(modifier = Modifier.weight(1f, fill = false)) {
-                        Text(
-                            text = chat.original,
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.Black
-                            ),
-                        )
-                        if (chat.originalLang != null && chat.originalLang != LanguagesChat.AUTO) {
-                            Text(
-                                text = "(${chat.originalLang.name})",
-                                fontSize = 12.sp,
-                                color = Color.Gray
-                            )
-                        }
-                    }
-                    IconButton(
-                        onClick = { clipboardManager.setText(AnnotatedString(chat.original)) },
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.copy),
-                            contentDescription = "Copy Original",
-                            tint = Color(0xFF003366)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-                Divider(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = Color.Gray.copy(alpha = 0.3f)
+                Text(
+                    text = chat.original,
+                    color = Color(0xFF003366),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                 )
-                Spacer(modifier = Modifier.height(8.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(modifier = Modifier.weight(1f, fill = false)) {
-                        Text(
-                            text = chat.translated,
-                            color = Color(0xFFFF6B00),
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
+                Divider(
+                    color = Color.Gray.copy(alpha = 0.4f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                )
 
-                    Row {
-                        IconButton(
-                            onClick = {
-                                if (tts.engines.isEmpty()) {
-                                    Toast.makeText(
-                                        context,
-                                        "No TTS engine found",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                    return@IconButton
-                                }
-                                if (tts.isSpeaking) {
-                                    tts.stop()
-                                }
-                                val result =
-                                    tts.speak(chat.translated, TextToSpeech.QUEUE_FLUSH, null, null)
-                                if (result == TextToSpeech.ERROR) {
-                                    Toast.makeText(
-                                        context,
-                                        "Error speaking text",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                            },
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.speaker),
-                                contentDescription = "Speak Translated",
-                                tint = Color(0xFF003366)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(4.dp))
-
-                        IconButton(
-                            onClick = { clipboardManager.setText(AnnotatedString(chat.translated)) },
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.copy),
-                                contentDescription = "Copy Translated",
-                                tint = Color(0xFF003366)
-                            )
-                        }
-                    }
-                }
+                Text(
+                    text = chat.translated,
+                    color = Color(0xFFFF6B00),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                )
             }
         }
     }

@@ -1,23 +1,24 @@
-package com.example.translatorapp.db
+package com.example.translatorapp.db.fav_db
 
 import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-@Database(entities = [Translate::class], version = 1, exportSchema = false)
-abstract class NoteDataBase : RoomDatabase() {
-    abstract fun getDao(): TranslateDao
+@Database(entities = [Favorite::class], version = 2, exportSchema = false)
+abstract class FavoriteDatabase : RoomDatabase() {
+
+    abstract fun getFavoriteDao(): FavoriteDao
 
     companion object {
         @Volatile
-        private var INSTANCE: NoteDataBase? = null
+        private var INSTANCE: FavoriteDatabase? = null
 
-        fun getDataBase(context: Context): NoteDataBase {
+        fun getDatabase(context: Context): FavoriteDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
-                    NoteDataBase::class.java,
-                    "notes_database"
+                    FavoriteDatabase::class.java,
+                    "favorite_database"
                 )
                     .fallbackToDestructiveMigration()
                     .build()
@@ -27,3 +28,4 @@ abstract class NoteDataBase : RoomDatabase() {
         }
     }
 }
+

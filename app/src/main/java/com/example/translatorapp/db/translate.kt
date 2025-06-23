@@ -15,10 +15,15 @@ data class Translate(
     @ColumnInfo(name = "translateText")
     val translateText: String,
 
-    @ColumnInfo(name = "isFavorite")
-    val isFavorite: Boolean = false,
+    @ColumnInfo(name = "languageCodeSimpleText")
+    val languageCodeSimpleText: String,
 
-    @ColumnInfo(name = "isHistory")
-    val isHistory: Boolean = true
-)
+    @ColumnInfo(name = "languageCodeTranslatedText")
+    val languageCodeTranslatedText: String,
+
+
+    )
+
+
+
 

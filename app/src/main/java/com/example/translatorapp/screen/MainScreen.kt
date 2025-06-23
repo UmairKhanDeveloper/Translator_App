@@ -3,14 +3,10 @@ package com.example.translatorapp.screen
 import android.Manifest
 import android.app.Activity
 import android.content.ActivityNotFoundException
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Bundle
-import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
-import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -84,11 +80,15 @@ import com.example.translatorapp.R
 import com.example.translatorapp.db.MainViewModel
 import com.example.translatorapp.db.NoteDataBase
 import com.example.translatorapp.db.Repository
+import com.example.translatorapp.db.Translate
+import com.example.translatorapp.db.fav_db.FavMainViewModel
+import com.example.translatorapp.db.fav_db.FavRepository
+import com.example.translatorapp.db.fav_db.Favorite
+import com.example.translatorapp.db.fav_db.FavoriteDatabase
 import kotlinx.coroutines.launch
 import me.bush.translator.Language
 import me.bush.translator.Translator
 import java.util.Locale
-
 
 
 @Composable
@@ -176,8 +176,6 @@ object Languages {
 }
 
 
-
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(navController: NavController) {
@@ -185,7 +183,13 @@ fun MainScreen(navController: NavController) {
     val translateDatabase = remember { NoteDataBase.getDataBase(context) }
     val repository = remember { Repository(translateDatabase) }
     val viewModel = remember { MainViewModel(repository) }
-     val notesList by viewModel.allTranslate.observeAsState(initial = emptyList())
+    val allListTranslate by viewModel.allTranslate.observeAsState(initial = emptyList())
+
+    val db = remember { FavoriteDatabase.getDatabase(context) }
+    val repository1 = remember { FavRepository(db) }
+    val viewModel1 = remember { FavMainViewModel(repository1) }
+
+    val favorites by viewModel1.allFavorite.observeAsState(initial = emptyList())
 
     var textFields by remember { mutableStateOf("") }
     var showTranslatedCard by remember { mutableStateOf(false) }
@@ -208,10 +212,10 @@ fun MainScreen(navController: NavController) {
 
 
     var selectedFromLanguage by remember { mutableStateOf(Languages.AUTO) }
-    var selectedToLanguage by remember { mutableStateOf(languages.first { it.code == "es" }) }
+    var selectedToLanguage by remember { mutableStateOf(languages.first { it.code == "es"  }) }
+
 
     val clipboardManager = LocalClipboardManager.current
-
 
 
     val speechRecognitionLauncher = rememberLauncherForActivityResult(
@@ -237,21 +241,30 @@ fun MainScreen(navController: NavController) {
         onResult = { granted ->
             if (granted) {
                 val speechIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, if (selectedFromLanguage != Languages.AUTO) selectedFromLanguage.code else Locale.getDefault().language)
+                    putExtra(
+                        RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                        RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                    )
+                    putExtra(
+                        RecognizerIntent.EXTRA_LANGUAGE,
+                        if (selectedFromLanguage != Languages.AUTO) selectedFromLanguage.code else Locale.getDefault().language
+                    )
                     putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak now...")
                 }
                 try {
                     speechRecognitionLauncher.launch(speechIntent)
                 } catch (e: ActivityNotFoundException) {
-                    Toast.makeText(context, "Speech recognizer not available on this device", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        context,
+                        "Speech recognizer not available on this device",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             } else {
                 Toast.makeText(context, "Microphone permission denied", Toast.LENGTH_SHORT).show()
             }
         }
     )
-
 
 
     val tts = remember {
@@ -275,7 +288,6 @@ fun MainScreen(navController: NavController) {
             ModalDrawerSheet {
                 Column(
                     modifier = Modifier
-                        .fillMaxSize()
                         .padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
@@ -319,17 +331,31 @@ fun MainScreen(navController: NavController) {
                             }
                         }
                         SettingItem(icon = R.drawable.shield_done, "Privacy Policy") {
-                            Toast.makeText(context, "Privacy Policy Clicked", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Privacy Policy Clicked", Toast.LENGTH_SHORT)
+                                .show()
                         }
                         SettingItem(icon = R.drawable.feedback, text = "Feedback") {
                             val emailIntent = Intent(Intent.ACTION_SENDTO).apply {
                                 data = Uri.parse("mailto:")
                                 putExtra(Intent.EXTRA_EMAIL, arrayOf("support@yourapp.com"))
                                 putExtra(Intent.EXTRA_SUBJECT, "App Feedback")
-                                putExtra(Intent.EXTRA_TEXT, "App Version: ${context.packageManager.getPackageInfo(context.packageName, 0).versionName}\n\nFeedback:\n") // Include app version
+                                putExtra(
+                                    Intent.EXTRA_TEXT,
+                                    "App Version: ${
+                                        context.packageManager.getPackageInfo(
+                                            context.packageName,
+                                            0
+                                        ).versionName
+                                    }\n\nFeedback:\n"
+                                )
                             }
                             try {
-                                context.startActivity(Intent.createChooser(emailIntent, "Send Feedback"))
+                                context.startActivity(
+                                    Intent.createChooser(
+                                        emailIntent,
+                                        "Send Feedback"
+                                    )
+                                )
                             } catch (e: ActivityNotFoundException) {
                                 Toast.makeText(context, "No email app found", Toast.LENGTH_SHORT)
                                     .show()
@@ -457,7 +483,11 @@ fun MainScreen(navController: NavController) {
                                         showTranslatedCard = false
                                         isTranslating = false
                                     } else {
-                                        Toast.makeText(context, "Cannot swap when source is Auto Detect", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(
+                                            context,
+                                            "Cannot swap when source is Auto Detect",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
                                     }
                                 }
                         )
@@ -590,22 +620,41 @@ fun MainScreen(navController: NavController) {
                         ) {
                             IconButton(
                                 onClick = {
-                                    when (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)) {
+                                    when (ContextCompat.checkSelfPermission(
+                                        context,
+                                        Manifest.permission.RECORD_AUDIO
+                                    )) {
                                         PackageManager.PERMISSION_GRANTED -> {
-                                            val speechIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                                                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                                                putExtra(RecognizerIntent.EXTRA_LANGUAGE, if (selectedFromLanguage != Languages.AUTO) selectedFromLanguage.code else Locale.getDefault().language)
-                                                putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak now...") // Optional: add a prompt
-                                            }
+                                            val speechIntent =
+                                                Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                                    putExtra(
+                                                        RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                                                        RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                                                    )
+                                                    putExtra(
+                                                        RecognizerIntent.EXTRA_LANGUAGE,
+                                                        if (selectedFromLanguage != Languages.AUTO) selectedFromLanguage.code else Locale.getDefault().language
+                                                    )
+                                                    putExtra(
+                                                        RecognizerIntent.EXTRA_PROMPT,
+                                                        "Speak now..."
+                                                    )
+                                                }
                                             try {
                                                 speechRecognitionLauncher.launch(speechIntent)
                                             } catch (e: ActivityNotFoundException) {
-                                                Toast.makeText(context, "Speech recognizer not available", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(
+                                                    context,
+                                                    "Speech recognizer not available",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
                                             }
                                         }
+
                                         PackageManager.PERMISSION_DENIED -> {
                                             permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                                         }
+
                                         else -> {
                                             permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                                         }
@@ -632,33 +681,50 @@ fun MainScreen(navController: NavController) {
                                         translatedText = ""
 
                                         coroutineScope.launch {
-                                            val translationResult =
-                                                selectedToLanguage.code?.let { Language(it) }?.let {
-                                                    selectedFromLanguage.code?.let { Language(it) }
-                                                        ?.let { it1 ->
-                                                            translator.translate(
-                                                                text = textFields,
-                                                                target = it,
-                                                                source = it1
-                                                            )
-                                                        }
+                                            val translationResult = try {
+                                                selectedToLanguage.code?.let { targetCode ->
+                                                    selectedFromLanguage.code?.let { sourceCode ->
+                                                        val targetLang = Language(targetCode)
+                                                        val sourceLang = Language(sourceCode)
+                                                        translator.translate(
+                                                            text = textFields,
+                                                            target = targetLang,
+                                                            source = sourceLang
+                                                        )
+                                                    }
                                                 }
-
+                                            } catch (e: Exception) {
+                                                e.printStackTrace()
+                                                null
+                                            }
 
                                             if (translationResult != null) {
                                                 translatedText = translationResult.translatedText
+                                                showTranslatedCard = true
+
+
+                                                viewModel.insert(
+                                                    Translate(
+                                                        id = null,
+                                                        simpleText = textFields,
+                                                        translateText = translatedText,
+                                                        languageCodeSimpleText = selectedFromLanguage.code ?: "en",
+                                                        languageCodeTranslatedText = selectedToLanguage.code ?: "es",
+
+                                                    )
+                                                )
+
+
                                             }
-                                            showTranslatedCard = true
+
                                             isTranslating = false
-
-
-
                                         }
                                     }
-
                                 },
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFFFF6600)
+                                    containerColor = Color(
+                                        0xFFFF6600
+                                    )
                                 ),
                                 shape = CircleShape,
                                 enabled = textFields.isNotBlank() && !isTranslating
@@ -677,6 +743,8 @@ fun MainScreen(navController: NavController) {
                                     )
                                 }
                             }
+
+
                         }
                     }
                 }
@@ -727,7 +795,11 @@ fun MainScreen(navController: NavController) {
                                             val result = tts.setLanguage(targetLocale)
 
                                             if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                                                Toast.makeText(context, "Language not supported for speech", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(
+                                                    context,
+                                                    "Language not supported for speech",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
                                                 tts.language = Locale.getDefault()
                                             }
 
@@ -777,7 +849,11 @@ fun MainScreen(navController: NavController) {
                                         .padding(end = 16.dp)
                                         .clickable {
                                             if (translatedText.isNotBlank()) {
-                                                clipboardManager.setText(AnnotatedString(translatedText))
+                                                clipboardManager.setText(
+                                                    AnnotatedString(
+                                                        translatedText
+                                                    )
+                                                )
                                                 Toast.makeText(
                                                     context,
                                                     "Copied to clipboard",
@@ -806,14 +882,29 @@ fun MainScreen(navController: NavController) {
                                         },
                                     tint = Color(0XFF003366)
                                 )
+                                var isFavorited by remember { mutableStateOf(false) }
+
                                 Icon(
-                                    painter = painterResource(R.drawable.star),
+                                    painter = painterResource(
+                                        id = if (isFavorited) R.drawable.star else R.drawable.star_border
+                                    ),
                                     contentDescription = "Favorite",
                                     modifier = Modifier.clickable {
-
+                                        if (!isFavorited && textFields.isNotBlank() && translatedText.isNotBlank()) {
+                                            viewModel1.favorite(
+                                                Favorite(
+                                                    simpleText = textFields,
+                                                    translateText = translatedText,
+                                                    languageCodeSimpleText1 = selectedFromLanguage.code ?: "en",
+                                                    languageCodeTranslatedText1 = selectedToLanguage.code ?: "es"
+                                                )
+                                            )
+                                            isFavorited = true
+                                        }
                                     },
                                     tint = Color(0XFF003366)
                                 )
+
                             }
                         }
                     }

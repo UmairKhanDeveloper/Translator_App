@@ -4,11 +4,10 @@ import androidx.lifecycle.LiveData
 
 class Repository(private val translateDataBase: NoteDataBase) {
 
-    fun getAllNotes(): LiveData<List<Translate>> = translateDataBase.getDao().getAllTranslate()
+    fun getAllNotes(): LiveData<List<Translate>> =
+        translateDataBase.getDao().getAllTranslate()
 
-
-
-    fun insert(translate: Translate) {
+    suspend fun insert(translate: Translate) {
         translateDataBase.getDao().insert(translate)
     }
 
