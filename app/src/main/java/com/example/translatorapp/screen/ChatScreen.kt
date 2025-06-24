@@ -226,11 +226,6 @@ fun ChatScreen(navController: NavHostController) {
             val result = tts.setLanguage(locale)
 
             if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                Toast.makeText(
-                    context,
-                    "TTS language ${selectedToLanguage.name} not fully supported or data missing. Result code: $result",
-                    Toast.LENGTH_LONG
-                ).show()
             } else if (result == TextToSpeech.LANG_AVAILABLE || result == TextToSpeech.LANG_COUNTRY_AVAILABLE || result == TextToSpeech.LANG_COUNTRY_VAR_AVAILABLE) {
                 println("TTS language set to ${selectedToLanguage.name}")
             } else {

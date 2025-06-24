@@ -88,4 +88,11 @@ dependencies {
     testImplementation("androidx.room:room-testing:2.6.1")
     implementation("androidx.compose.runtime:runtime-livedata:1.6.10")
 
+
+
+    implementation ("com.google.mlkit:text-recognition:16.0.1")
+    implementation ("com.google.mlkit:text-recognition-chinese:16.0.1")
+    implementation ("com.google.mlkit:text-recognition-devanagari:16.0.1")
+    implementation ("com.google.mlkit:text-recognition-japanese:16.0.1")
+    implementation ("com.google.mlkit:text-recognition-korean:16.0.1")
 }

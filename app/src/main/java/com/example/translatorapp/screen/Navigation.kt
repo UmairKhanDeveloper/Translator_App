@@ -48,7 +48,7 @@ fun Navigation(navController: NavHostController) {
 }
 
 sealed class Screen(val route: String, val title: String, val icon: Int) {
-    object MainScreen : Screen("MainScreen", "", icon = R.drawable.mdi_translate)
+    object MainScreen : Screen("MainScreen", "Translate", icon = R.drawable.mdi_translate)
     object SplashScreen : Screen("SplashScreen", "SplashScreen", icon = R.drawable.mic)
     object ChatScreen : Screen("ChatScreen", "Chat", icon = R.drawable.mic)
     object CameraScreen : Screen("CameraScreen", "Camera", icon = R.drawable.camera)
@@ -59,9 +59,8 @@ sealed class Screen(val route: String, val title: String, val icon: Int) {
 @Composable
 fun BottomNavigation(navController: NavHostController) {
     val items = listOf(
-        Screen.ChatScreen,
-        Screen.CameraScreen,
         Screen.MainScreen,
+        Screen.ChatScreen,
         Screen.HistoryScreen,
         Screen.FavouriteScreen
     )
@@ -89,20 +88,14 @@ fun BottomNavigation(navController: NavHostController) {
                 },
                 icon = {
                     if (isCenterItem) {
-                        Box(
-                            modifier = Modifier
-                                .size(49.dp)
-                                .offset(y = (15).dp)
-                                .background(color = Color(0xFF0A57FF), shape = CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                painter = painterResource(id = screen.icon),
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
+
+                        Icon(
+                            painter = painterResource(id = screen.icon),
+                            contentDescription = null,
+                            tint = Color.Black,
+                            modifier = Modifier.size(22.dp)
+                        )
+
                     } else {
                         Icon(
                             painter = painterResource(id = screen.icon),
@@ -120,9 +113,9 @@ fun BottomNavigation(navController: NavHostController) {
                 },
                 alwaysShowLabel = true,
                 colors = NavigationBarItemDefaults.colors(
-                    indicatorColor = Color(0xFFFFFBFE),
+                    indicatorColor = Color.White,
 
-                )
+                    )
             )
         }
     }
